@@ -1,16 +1,14 @@
 const Product = require("../Models/productmodel.js");
+const upload = require("../middleware/upload");
+const sendEmail = require("../middleware/emailsender.js");
 //create a product
 
 exports.createProduct = async (req, res) => {
   try {
     //check if all required filed are provided
-    if (
-      !req.body.name ||
-      !req.body.size ||
-      !req.body.description ||
-      !req.body.price ||
-      !req.body.quantity
-    ) {
+    const { name, size, description, price, quantity, color } = req.body;
+
+    if (!name || !size || !description || !price || !quantity || !color) {
       return res
         .status(400)
         .json({ message: "please provide all the required field" });
@@ -18,8 +16,6 @@ exports.createProduct = async (req, res) => {
     //short code to post
     // const product = await Product.create(req.body);
     // res.status(201).json(product)
-
-    const { name, size, description, price, quantity, color } = req.body;
 
     const product = new Product({
       name,
@@ -30,12 +26,67 @@ exports.createProduct = async (req, res) => {
       color,
     });
     await product.save();
+
+    //generate otp
+    const otp = Math.floor(100000 + Math.random() * 900000); //generate a 6 digit otp
+    //send email notification to admin that a new product has been created
+    const subject = "New Product Created";
+    const text = `A new product has been creacted, confirm with this ${otp}`;
+    await sendEmail("lekanazippy@gmail.com", subject, text);
+
     res.status(201).json({ message: "product created successsfully", product });
   } catch (error) {
     res
       .status(500)
       .json({ message: "Error creating product", error: error.message });
   }
+};
+
+exports.createProductWithImage = async (req, res) => {
+  upload.single("image")(req, res, async (err) => {
+    //check upload error
+    if (err) {
+      return res
+        .status(400)
+        .json({ message: "Error uploading image", error: err.message });
+    }
+    try {
+      //get product data from requst body
+      const { name, size, description, price, quantity, color } = req.body;
+      //check required field
+      if (!name || !size || !description || !price || !quantity) {
+        return res
+          .status(400)
+          .json({ message: "Please provide all the required field" });
+      }
+
+      //check if image was uploaded
+      if (!req.file) {
+        return res.status(400).json({ message: "Please provide an image" });
+      }
+      console.log(req.file.path);
+      console.log(req.body);
+
+      //create product
+      const product = new Product({
+        name,
+        size,
+        description,
+        price,
+        quantity,
+        color,
+        image: req.file.path,
+      });
+      //save product to database
+      await product.save();
+      return res
+        .status(200)
+        .json({ message: "Product Created successfully", product });
+    } catch (err) {
+      console.error(err.message);
+      return res.status(500).json({ message: "Error Creating Product" });
+    }
+  });
 };
 
 //update a product
@@ -48,7 +99,7 @@ exports.updateProduct = async (req, res) => {
     const product = await Product.findByIdAndUpdate(
       id,
       { name, size, description, price, quantity, color },
-      { new: true },
+      { new: true, runValidators: true },
     );
 
     if (!product) {

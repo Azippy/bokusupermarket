@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs");
 
 const userSchema = new mongoose.Schema(
   {
@@ -15,24 +14,25 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     gender: {
       type: String,
-      enum: ["Male", "Female"],
+      enum: ["male", "female"],
       required: true,
     },
-    hasAtmCard:{
-        type: Boolean,
-        default:false
+    hasAdminAcess: {
+      type: Boolean,
+      default: false,
     },
     phone: {
-      type: Number,
+      type: String,
       require: true,
     },
     role: {
       type: String,
-      enum: ["Admin", "user"],
-      default: "user",
+      enum: ["superadmin", "storekeeper", "salesperson"],
+      default: "salesperson",
     },
   },
   { timestamps: true },
